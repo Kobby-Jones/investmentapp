@@ -1,0 +1,8 @@
+{
+  "name": "FINORA - Digital Investment & Portfolio Management",
+  "description": "High-fidelity academic presentation prototype for digital investment portfolio management, featuring comprehensive investor marketplace, portfolio analytics, and administrator operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

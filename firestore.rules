@@ -1,0 +1,218 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'kobbyjones154@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity Validation Helpers
+    function isValidUser(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.fullName is string && data.fullName.size() <= 100 &&
+             data.email is string && data.email.size() <= 150 &&
+             data.role in ['investor', 'admin'] &&
+             data.kycStatus in ['Verified', 'Pending', 'Under Review', 'Rejected'] &&
+             data.availableCashBalance is number && data.availableCashBalance >= 0;
+    }
+
+    function isValidHolding(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.productId is string && data.productId.size() <= 128 &&
+             data.units is number && data.units >= 0 &&
+             data.totalCost is number && data.totalCost >= 0 &&
+             data.currentValue is number && data.currentValue >= 0;
+    }
+
+    function isValidTransaction(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.reference is string && data.reference.size() <= 50 &&
+             data.type in ['deposit', 'withdrawal', 'investment', 'dividend', 'fee'] &&
+             data.amount is number && data.amount > 0 &&
+             data.status in ['Completed', 'Pending', 'Processing', 'Failed'];
+    }
+
+    function isValidProduct(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.category in ['money_market', 'fixed_income', 'balanced', 'equity'] &&
+             data.minInvestment is number && data.minInvestment >= 0 &&
+             data.status in ['active', 'inactive'];
+    }
+
+    function isValidWithdrawal(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.amount is number && data.amount > 0 &&
+             data.destination is string && data.destination.size() <= 150 &&
+             data.status in ['Pending', 'Under Review', 'Approved', 'Processing', 'Completed', 'Rejected'];
+    }
+
+    function isValidKycApp(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.idType is string && data.idType.size() <= 50 &&
+             data.idNumber is string && data.idNumber.size() <= 50 &&
+             data.status in ['Verified', 'Pending', 'Under Review', 'Rejected'];
+    }
+
+    // Connection Health Check Document (Mandatory for initial boot test)
+    match /test/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming()) && (
+        incoming().role == 'investor' || isAdmin()
+      );
+      allow update: if (isOwner(userId) && isValidId(userId) && isValidUser(incoming()) &&
+                       incoming().role == existing().role &&
+                       incoming().kycStatus == existing().kycStatus) || isAdmin();
+      allow delete: if isAdmin();
+
+      // Subcollection: Holdings (Master Gate Relational Invariant)
+      match /holdings/{holdingId} {
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
+        allow create, update: if (isOwner(userId) || isAdmin()) && isValidId(holdingId) && isValidHolding(incoming());
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      // Subcollection: Transactions
+      match /transactions/{transactionId} {
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
+        allow create, update: if (isOwner(userId) || isAdmin()) && isValidId(transactionId) && isValidTransaction(incoming());
+        allow delete: if isAdmin();
+      }
+    }
+
+    // Products Catalog (Public Read, Admin Write)
+    match /products/{productId} {
+      allow get, list: if true;
+      allow create, update: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Withdrawal Orders
+    match /withdrawals/{withdrawalId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(withdrawalId) &&
+                       incoming().userId == request.auth.uid &&
+                       isValidWithdrawal(incoming());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // KYC Compliance Applications
+    match /kyc_applications/{applicationId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(applicationId) &&
+                       incoming().userId == request.auth.uid &&
+                       isValidKycApp(incoming());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Deposits Queue (User submits, Admin reviews/approves)
+    match /deposits/{depositId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(depositId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().amount is number && incoming().amount > 0 &&
+                       incoming().status in ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED'];
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Double-Entry Financial Ledger (Immutable audit grade)
+    match /ledger_entries/{entryId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(entryId) &&
+                       (incoming().userId == request.auth.uid || isAdmin()) &&
+                       incoming().amount is number && incoming().amount > 0;
+      allow update, delete: if false; // Immutable ledger
+    }
+
+    // Portfolio Valuations (Public read, Admin update)
+    match /valuations/{valuationId} {
+      allow get, list: if true;
+      allow create, update: if isAdmin() && isValidId(valuationId);
+      allow delete: if isAdmin();
+    }
+
+    // In-App Notifications
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Referrals System
+    match /referrals/{referralId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // System Configuration Settings
+    match /system_settings/{settingId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Immutable System Audit Logs
+    match /audit_logs/{logId} {
+      allow get, list: if isAdmin();
+      allow create: if isSignedIn() && isValidId(logId);
+      allow update, delete: if false; // Immutable audit log
+    }
+
+    // Admin Authority Registry
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if request.auth.token.email == 'kobbyjones154@gmail.com';
+    }
+  }
+}

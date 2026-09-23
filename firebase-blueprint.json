@@ -1,0 +1,186 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Registered platform investor or administrator profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "fullName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "role": { "type": "string", "enum": ["investor", "admin"] },
+        "kycStatus": { "type": "string", "enum": ["Verified", "Pending", "Under Review", "Rejected"] },
+        "availableCashBalance": { "type": "number" },
+        "totalInvested": { "type": "number" },
+        "idType": { "type": "string", "maxLength": 50 },
+        "idNumber": { "type": "string", "maxLength": 50 },
+        "bankName": { "type": "string", "maxLength": 100 },
+        "accountNumber": { "type": "string", "maxLength": 50 },
+        "routingNumber": { "type": "string", "maxLength": 50 },
+        "mobileMoneyProvider": { "type": "string", "maxLength": 50 },
+        "mobileMoneyNumber": { "type": "string", "maxLength": 30 },
+        "referralCode": { "type": "string", "maxLength": 30 },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "fullName", "email", "role", "kycStatus", "availableCashBalance"]
+    },
+    "InvestmentProduct": {
+      "title": "Investment Product",
+      "description": "Regulated portfolio fund offering available for subscription",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "category": { "type": "string", "enum": ["money_market", "fixed_income", "balanced", "equity"] },
+        "riskRating": { "type": "string", "enum": ["Low", "Low–Medium", "Medium", "Medium–High", "High"] },
+        "horizon": { "type": "string", "maxLength": 50 },
+        "minInvestment": { "type": "number" },
+        "managementFee": { "type": "string", "maxLength": 30 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "strategy": { "type": "string", "maxLength": 1000 },
+        "demoHistoricalReturn": { "type": "string", "maxLength": 50 },
+        "historicalAnnualReturnNumber": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "totalInvestors": { "type": "number" },
+        "simulatedAum": { "type": "number" },
+        "inceptionDate": { "type": "string", "maxLength": 30 },
+        "riskInformation": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["id", "name", "category", "riskRating", "minInvestment", "status"]
+    },
+    "Holding": {
+      "title": "Portfolio Holding",
+      "description": "User investment allocation in an investment product",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "productId": { "type": "string", "maxLength": 128 },
+        "productName": { "type": "string", "maxLength": 100 },
+        "category": { "type": "string", "maxLength": 50 },
+        "units": { "type": "number" },
+        "averageCost": { "type": "number" },
+        "currentValue": { "type": "number" },
+        "totalCost": { "type": "number" },
+        "gainLoss": { "type": "number" },
+        "gainLossPercent": { "type": "number" },
+        "allocationPercent": { "type": "number" },
+        "purchaseDate": { "type": "string", "maxLength": 30 },
+        "lastValuationDate": { "type": "string", "maxLength": 30 }
+      },
+      "required": ["id", "userId", "productId", "units", "totalCost", "currentValue"]
+    },
+    "Transaction": {
+      "title": "Financial Transaction",
+      "description": "Deposit, withdrawal, investment subscription, or dividend payout record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "reference": { "type": "string", "maxLength": 50 },
+        "type": { "type": "string", "enum": ["deposit", "withdrawal", "investment", "dividend", "fee"] },
+        "title": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 200 },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["Completed", "Pending", "Processing", "Failed"] },
+        "method": { "type": "string", "maxLength": 50 },
+        "recipientOrSource": { "type": "string", "maxLength": 100 },
+        "fee": { "type": "number" }
+      },
+      "required": ["id", "userId", "reference", "type", "amount", "status"]
+    },
+    "WithdrawalRequest": {
+      "title": "Withdrawal Liquidity Request",
+      "description": "Redemption order awaiting operational authorization",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "userEmail": { "type": "string", "format": "email", "maxLength": 150 },
+        "amount": { "type": "number" },
+        "method": { "type": "string", "maxLength": 50 },
+        "destination": { "type": "string", "maxLength": 150 },
+        "fee": { "type": "number" },
+        "netAmount": { "type": "number" },
+        "requestedAt": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["Pending", "Under Review", "Approved", "Processing", "Completed", "Rejected"] },
+        "reviewNotes": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "userId", "amount", "destination", "status"]
+    },
+    "KycApplication": {
+      "title": "KYC Compliance Application",
+      "description": "User identity verification document submission",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "userEmail": { "type": "string", "format": "email", "maxLength": 150 },
+        "idType": { "type": "string", "maxLength": 50 },
+        "idNumber": { "type": "string", "maxLength": 50 },
+        "documentName": { "type": "string", "maxLength": 100 },
+        "submittedAt": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["Verified", "Pending", "Under Review", "Rejected"] },
+        "riskRating": { "type": "string", "enum": ["Low", "Medium", "High"] },
+        "reviewNotes": { "type": "string", "maxLength": 500 },
+        "reviewedBy": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "userId", "idType", "idNumber", "status"]
+    },
+    "AuditLog": {
+      "title": "System Audit Trail",
+      "description": "Immutable compliance and regulatory audit event log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "timestamp": { "type": "string", "maxLength": 50 },
+        "administrator": { "type": "string", "maxLength": 100 },
+        "action": { "type": "string", "maxLength": 200 },
+        "entity": { "type": "string", "maxLength": 200 },
+        "reference": { "type": "string", "maxLength": 100 },
+        "ipDevice": { "type": "string", "maxLength": 100 },
+        "result": { "type": "string", "enum": ["Success", "Flagged", "Rejected"] }
+      },
+      "required": ["id", "timestamp", "administrator", "action", "result"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profile and financial settings"
+    },
+    "/users/{userId}/holdings/{holdingId}": {
+      "schema": { "$ref": "#/entities/Holding" },
+      "description": "Active portfolio holdings for a specific investor"
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Transaction ledger entries for a specific investor"
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/InvestmentProduct" },
+      "description": "Investment products listed on the platform"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": { "$ref": "#/entities/WithdrawalRequest" },
+      "description": "Global queue of withdrawal requests for administrative and user tracking"
+    },
+    "/kyc_applications/{applicationId}": {
+      "schema": { "$ref": "#/entities/KycApplication" },
+      "description": "Identity verification applications reviewed by compliance officers"
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Immutable regulatory audit trail records"
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Trusted administrative authority registry"
+    }
+  }
+}
